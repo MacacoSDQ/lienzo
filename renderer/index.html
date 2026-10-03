@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' file: data:; font-src 'self' file: data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+  />
+  <title>Lienzo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="logo.png" alt="" />
+      <span>Lienzo</span>
+    </div>
+    <button class="icon-btn" id="close" title="Cerrar (Esc)">✕</button>
+  </header>
+
+  <section class="update" id="update" hidden>
+    <div class="update-head">
+      <span class="badge">NEW UPDATE AVAILABLE</span>
+      <strong id="updateVersion"></strong>
+    </div>
+    <p id="updateNotes"></p>
+    <button class="update-btn" id="updateBtn">Actualizar y reiniciar</button>
+  </section>
+
+  <section class="status" id="status">
+    <span class="dot"></span>
+    <div class="status-text">
+      <strong id="statusTitle">Buscando Discord…</strong>
+      <small id="statusSub"></small>
+    </div>
+    <button class="pill" id="connect" hidden>Abrir Discord</button>
+  </section>
+
+  <nav class="tabs">
+    <button data-tab="backgrounds" class="active">Fondos</button>
+    <button data-tab="fonts">Fuentes</button>
+  </nav>
+
+  <main>
+    <section id="pane-backgrounds" class="pane">
+      <div class="grid" id="bgGrid"></div>
+      <div class="controls" id="bgControls">
+        <label>
+          <span>Oscuridad <em id="dimVal"></em></span>
+          <input type="range" id="dim" min="0" max="0.85" step="0.05" />
+        </label>
+        <label>
+          <span>Desenfoque <em id="blurVal"></em></span>
+          <input type="range" id="blur" min="0" max="20" step="1" />
+        </label>
+      </div>
+    </section>
+
+    <section id="pane-fonts" class="pane" hidden>
+      <div class="font-list" id="fontList"></div>
+    </section>
+  </main>
+
+  <footer class="foot"><span id="appVersion"></span><span id="updateMini"></span></footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

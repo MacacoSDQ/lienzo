@@ -1,0 +1,3 @@
+- El fondo ahora cubre toda la ventana de Discord (también con el tema Midnight).
+- Sistema de actualizaciones: cuando haya versión nueva te sale "NEW UPDATE AVAILABLE".
+- GIFs animados como fondo.
