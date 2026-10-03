@@ -14,12 +14,37 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run release
+
+      # Compila el instalador (Lienzo-Setup-X.exe + .blockmap + latest.yml)
+      - run: npx electron-builder --win --publish never
+
+      # Sube los archivos a la Release del tag (la crea si no existe)
+      - name: Publicar release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if (-not $tag.StartsWith('v')) { throw "Lanza el workflow desde un tag (vX.Y.Z), no desde '$tag'." }
+
+          Get-ChildItem dist -File | Format-Table Name, Length
+          $files = @(Get-ChildItem dist -File | Where-Object {
+            $_.Name -like 'Lienzo-Setup-*' -or $_.Name -eq 'latest.yml'
+          } | ForEach-Object { $_.FullName })
+
+          if (-not ($files | Where-Object { $_ -like '*.exe' })) { throw 'No se generó el instalador .exe' }
+          if (-not ($files | Where-Object { $_ -like '*latest.yml' })) { throw 'No se generó latest.yml' }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+          } else {
+            gh release create $tag @files --title $tag --notes-file build/release-notes.md
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la subida a la Release' }
