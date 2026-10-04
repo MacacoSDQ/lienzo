@@ -40,6 +40,33 @@ module.exports = async function lienzoInject(p) {
     S.canvas = canvas;
     const ctx = canvas.getContext('2d');
     let frame = null;
+    let animatedFrames = false;
+    let cache = null; // imagen ya escalada a la medida de la ventana
+
+    const smooth = (c) => {
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+    };
+
+    // Escalado de alta calidad: en pasos de x2 como máximo (mucho más nítido
+    // que estirar de golpe una imagen pequeña a pantalla completa).
+    const upscale = (src, sw, sh, tw, th) => {
+      let cur = src;
+      let cw = sw;
+      let chh = sh;
+      while (cw * 2 < tw && chh * 2 < th) {
+        const step = document.createElement('canvas');
+        step.width = cw * 2;
+        step.height = chh * 2;
+        const sc = step.getContext('2d');
+        smooth(sc);
+        sc.drawImage(cur, 0, 0, cw, chh, 0, 0, step.width, step.height);
+        cur = step;
+        cw = step.width;
+        chh = step.height;
+      }
+      return { img: cur, w: cw, h: chh };
+    };
 
     const draw = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -49,13 +76,25 @@ module.exports = async function lienzoInject(p) {
         canvas.width = W;
         canvas.height = H;
       }
+      smooth(ctx);
       ctx.clearRect(0, 0, W, H);
       if (!frame) return;
       const fw = frame.displayWidth || frame.width;
       const fh = frame.displayHeight || frame.height;
       const s = Math.max(W / fw, H / fh) * (blur ? 1.08 : 1);
+      const tw = Math.round(fw * s);
+      const th = Math.round(fh * s);
+
+      let src = { img: frame, w: fw, h: fh };
+      if (!animatedFrames && s > 1.5) {
+        if (!cache || cache.tw !== tw || cache.th !== th) {
+          cache = { tw, th, ...upscale(frame, fw, fh, tw, th) };
+        }
+        src = cache;
+      }
+
       ctx.filter = blur ? `blur(${blur * dpr}px)` : 'none';
-      ctx.drawImage(frame, (W - fw * s) / 2, (H - fh * s) / 2, fw * s, fh * s);
+      ctx.drawImage(src.img, 0, 0, src.w, src.h, (W - tw) / 2, (H - th) / 2, tw, th);
       ctx.filter = 'none';
       if (dim) {
         ctx.fillStyle = `rgba(0,0,0,${dim})`;
@@ -73,6 +112,7 @@ module.exports = async function lienzoInject(p) {
         await dec.completed;
         const count = dec.tracks.selectedTrack ? dec.tracks.selectedTrack.frameCount : 1;
         if (count > 1) {
+          animatedFrames = true;
           let i = 0;
           let alive = true;
           let timer = null;
@@ -101,7 +141,9 @@ module.exports = async function lienzoInject(p) {
       }
     }
     if (!info.animated) {
+      animatedFrames = false;
       frame = await createImageBitmap(new Blob([data], { type: p.bg.mime }));
+      info.size = [frame.width, frame.height];
       draw();
     }
     info.bg = true;

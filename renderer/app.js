@@ -90,6 +90,30 @@ function deleteButton(kind, id) {
 
 /* ---------- Fondos ---------- */
 
+// Tamaño real de cada imagen, para avisar si es demasiado pequeña para la pantalla
+const sizes = new Map();
+function screenPx() {
+  const r = window.devicePixelRatio || 1;
+  return { w: Math.round(screen.width * r), h: Math.round(screen.height * r) };
+}
+function quality(id) {
+  const sz = sizes.get(id);
+  if (!sz) return null;
+  const scr = screenPx();
+  const ratio = Math.max(scr.w / sz.w, scr.h / sz.h);
+  return { ...sz, scr, low: ratio > 1.6 };
+}
+function measure(bg) {
+  if (sizes.has(bg.id)) return;
+  sizes.set(bg.id, null);
+  const im = new Image();
+  im.onload = () => {
+    sizes.set(bg.id, { w: im.naturalWidth, h: im.naturalHeight });
+    render();
+  };
+  im.src = bg.url;
+}
+
 function renderBackgrounds() {
   const grid = $('#bgGrid');
   grid.replaceChildren();
@@ -108,6 +132,12 @@ function renderBackgrounds() {
     img.loading = 'lazy';
     img.decoding = 'async';
     t.append(img, deleteButton('backgrounds', bg.id));
+    measure(bg);
+    const q = quality(bg.id);
+    if (q) {
+      t.title = `${bg.name} — ${q.w}×${q.h}`;
+      if (q.low) t.append(el('span', 'lowres', 'Baja calidad'));
+    }
     t.addEventListener('click', async () => update(await api.select('backgrounds', bg.id)));
     grid.append(t);
   }
@@ -116,6 +146,18 @@ function renderBackgrounds() {
   add.title = 'Agregar fondos';
   add.addEventListener('click', async () => update(await api.add('backgrounds')));
   grid.append(add);
+
+  const hint = $('#bgHint');
+  const q = S.config.background && quality(S.config.background);
+  if (q && q.low) {
+    hint.hidden = false;
+    hint.textContent =
+      `Esta imagen mide ${q.w}×${q.h} y tu pantalla ${q.scr.w}×${q.scr.h}, así que se ve estirada. ` +
+      `Para que salga nítida, usa una de al menos ${Math.round(q.scr.w * 0.75)}×${Math.round(q.scr.h * 0.75)} ` +
+      `(en Google Imágenes: Herramientas → Tamaño → Grande, y descarga la imagen original, no la miniatura).`;
+  } else {
+    hint.hidden = true;
+  }
 
   $('#bgControls').classList.toggle('disabled', !S.config.background);
   if (document.activeElement !== $('#dim')) $('#dim').value = S.config.dim;
