@@ -24,31 +24,25 @@ jobs:
       # Compila el instalador (Lienzo-Setup-X.exe + .blockmap + latest.yml)
       - run: npx electron-builder --win --publish never
 
-      # Sube los archivos a la Release del tag (la crea si no existe)
+      # Sube los archivos a la Release del tag. Borra antes cualquier Release vieja
+      # de ese tag (también borradores a medias) sin tocar el tag de git.
       - name: Publicar release
-        shell: pwsh
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = "${{ github.ref_name }}"
-          if (-not $tag.StartsWith('v')) { throw "Lanza el workflow desde un tag (vX.Y.Z), no desde '$tag'." }
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          case "$tag" in v*) ;; *) echo "Lanza el workflow desde un tag vX.Y.Z, no desde '$tag'"; exit 1 ;; esac
 
-          Get-ChildItem dist -File | Format-Table Name, Length
-          $files = @(Get-ChildItem dist -File | Where-Object {
-            $_.Name -like 'Lienzo-Setup-*' -or $_.Name -eq 'latest.yml'
-          } | ForEach-Object { $_.FullName })
+          ls -la dist
+          files=(dist/Lienzo-Setup-*.exe dist/Lienzo-Setup-*.exe.blockmap dist/latest.yml)
+          for f in "${files[@]}"; do [ -f "$f" ] || { echo "Falta $f"; exit 1; }; done
 
-          if (-not ($files | Where-Object { $_ -like '*.exe' })) { throw 'No se generó el instalador .exe' }
-          if (-not ($files | Where-Object { $_ -like '*latest.yml' })) { throw 'No se generó latest.yml' }
+          ids=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"$tag\") | .id")
+          for id in $ids; do
+            echo "Borrando release anterior $id"
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
 
-          # Borra cualquier Release anterior de este tag (también borradores a medias),
-          # sin tocar el tag de git, y la vuelve a crear limpia con todos los archivos.
-          $repo = "${{ github.repository }}"
-          $old = gh api "repos/$repo/releases?per_page=100" --jq ".[] | select(.tag_name == \"$tag\") | .id"
-          foreach ($id in ($old -split "`n" | Where-Object { $_ })) {
-            Write-Host "Borrando release anterior $id"
-            gh api -X DELETE "repos/$repo/releases/$id"
-          }
-
-          gh release create $tag @files --title $tag --notes-file build/release-notes.md --verify-tag --latest
-          if ($LASTEXITCODE -ne 0) { throw 'Falló la subida a la Release' }
+          gh release create "$tag" "${files[@]}" --title "$tag" --notes-file build/release-notes.md --verify-tag --latest
