@@ -41,12 +41,14 @@ jobs:
           if (-not ($files | Where-Object { $_ -like '*.exe' })) { throw 'No se generó el instalador .exe' }
           if (-not ($files | Where-Object { $_ -like '*latest.yml' })) { throw 'No se generó latest.yml' }
 
-          # Si la Release ya existe (aunque sea un borrador), sube/reemplaza los archivos.
-          # Si no existe, la crea con ellos.
-          gh release create $tag @files --title $tag --notes-file build/release-notes.md
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "La Release ya existe: subiendo archivos encima"
-            gh release upload $tag @files --clobber
-            if ($LASTEXITCODE -ne 0) { throw 'Falló la subida a la Release' }
-            gh release edit $tag --draft=false --latest --notes-file build/release-notes.md
+          # Borra cualquier Release anterior de este tag (también borradores a medias),
+          # sin tocar el tag de git, y la vuelve a crear limpia con todos los archivos.
+          $repo = "${{ github.repository }}"
+          $old = gh api "repos/$repo/releases?per_page=100" --jq ".[] | select(.tag_name == \"$tag\") | .id"
+          foreach ($id in ($old -split "`n" | Where-Object { $_ })) {
+            Write-Host "Borrando release anterior $id"
+            gh api -X DELETE "repos/$repo/releases/$id"
           }
+
+          gh release create $tag @files --title $tag --notes-file build/release-notes.md --verify-tag --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Falló la subida a la Release' }
