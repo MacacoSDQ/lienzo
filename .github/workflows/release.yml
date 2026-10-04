@@ -41,10 +41,12 @@ jobs:
           if (-not ($files | Where-Object { $_ -like '*.exe' })) { throw 'No se generó el instalador .exe' }
           if (-not ($files | Where-Object { $_ -like '*latest.yml' })) { throw 'No se generó latest.yml' }
 
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
+          # Si la Release ya existe (aunque sea un borrador), sube/reemplaza los archivos.
+          # Si no existe, la crea con ellos.
+          gh release create $tag @files --title $tag --notes-file build/release-notes.md
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "La Release ya existe: subiendo archivos encima"
             gh release upload $tag @files --clobber
-          } else {
-            gh release create $tag @files --title $tag --notes-file build/release-notes.md
+            if ($LASTEXITCODE -ne 0) { throw 'Falló la subida a la Release' }
+            gh release edit $tag --draft=false --latest --notes-file build/release-notes.md
           }
-          if ($LASTEXITCODE -ne 0) { throw 'Falló la subida a la Release' }
