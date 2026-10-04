@@ -22,6 +22,7 @@ function diagnose() {
   if (d.error) return `Error en Discord: ${d.error}`;
   if (!d.applied) return 'Discord todavía no ha recibido el tema';
   const r = d.result || {};
+  if (r.skipped) return ''; // el último aviso vino del overlay, no de la ventana principal
   const g = d.diag || {};
   if (S.config.background && !g.state) return 'Discord no encuentra la configuración de Lienzo';
   if (S.config.background && g.bgRequested && !g.bgRead)

@@ -1,3 +1,1 @@
-- Fondos más nítidos: escalado de alta calidad en lugar del suavizado básico.
-- Aviso de "Baja calidad" cuando una imagen es demasiado pequeña para tu pantalla, con la medida recomendada.
-- Arreglado: el aviso "NEW UPDATE AVAILABLE" ya no sale cuando no hay actualización.
+- Arreglado: el fondo ya no tapa los juegos. El overlay de Discord (la ventana que sale encima de Roblox y otros juegos) y las ventanas emergentes se quedan sin fondo; solo se aplica a la ventana principal.

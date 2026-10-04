@@ -26,6 +26,19 @@ module.exports = async function lienzoInject(p) {
   document.querySelectorAll('[data-lienzo-clear]').forEach((el) => el.removeAttribute('data-lienzo-clear'));
   S.stopAnim = S.onResize = S.onScanResize = S.canvas = S.observer = null;
 
+  /* ----- Solo la ventana principal ----- */
+  // El overlay de los juegos y las ventanas emergentes de Discord se abren en
+  // /popout: si se les pone el fondo, tapa el juego. Ahí se quita todo.
+  const path = location.pathname.toLowerCase();
+  if (path.startsWith('/popout') || path.includes('overlay') || window !== window.top) {
+    if (S.font) {
+      document.fonts.delete(S.font);
+      S.font = null;
+    }
+    if (S.sheet) S.sheet.replaceSync('');
+    return { ok: true, skipped: 'popout' };
+  }
+
   /* ----- Fondo ----- */
   if (p.bg) {
     const data = bytes(p.bg.data);
